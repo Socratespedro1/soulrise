@@ -6,6 +6,7 @@ import { supabase, isSupabaseConfigured, offlineAuth } from '@/lib/supabase';
 import { checkIsAdmin } from '@/lib/admin';
 import { getOrCreateProfile, checkUserHasPlan, updateProfileAfterQuiz } from '@/lib/profile-helpers';
 import { checkAndUpdateStreak, scheduleDailyReminder, requestNotificationPermission } from '@/lib/streak-system';
+import { checkQuizCompleted, markQuizAsCompleted, resetQuizStatus } from '@/lib/onboarding-helpers';
 import AuthForm from '@/components/auth/AuthForm';
 import Onboarding from '@/components/soulrise/Onboarding';
 import ConnectionQuiz, { QuizAnswers, PersonalizedPlan } from '@/components/soulrise/ConnectionQuiz';
@@ -39,12 +40,6 @@ export default function Home() {
     } catch (error) {
       console.log('Erro ao inicializar streak:', error);
     }
-  };
-
-  // NOVA LÓGICA: Verificar quiz_done no localStorage
-  const checkQuizDone = (): boolean => {
-    const quizDone = localStorage.getItem('quiz_done');
-    return quizDone === 'true';
   };
 
   useEffect(() => {
@@ -104,11 +99,11 @@ export default function Home() {
             return;
           }
 
-          // NOVA LÓGICA: Verificar quiz_done no localStorage
-          const quizDone = checkQuizDone();
+          // NOVA LÓGICA: Verificar quiz_completed no Supabase
+          const quizCompleted = await checkQuizCompleted(currentUserId);
 
-          if (quizDone) {
-            // REGRA: quiz_done = true -> redirecionar para Home (Dashboard)
+          if (quizCompleted) {
+            // REGRA: quiz_completed = true -> redirecionar para Home (Dashboard)
             const savedGoals = localStorage.getItem('soulrise_user_goals');
             const savedPlan = localStorage.getItem('soulrise_personalized_plan');
             
@@ -120,11 +115,11 @@ export default function Home() {
               setDailyPlan(generateDailyPlan(goals[0] as Goal));
               setAppState('dashboard');
             } else {
-              // Tem quiz_done mas não tem dados - mostrar quiz
+              // Tem quiz_completed mas não tem dados - mostrar quiz
               setAppState('quiz');
             }
           } else {
-            // REGRA: quiz_done = false ou não existe -> mostrar Quiz
+            // REGRA: quiz_completed = false -> mostrar Quiz
             setAppState('quiz');
           }
         } else {
@@ -170,11 +165,11 @@ export default function Home() {
             return;
           }
 
-          // NOVA LÓGICA: Verificar quiz_done
-          const quizDone = checkQuizDone();
+          // NOVA LÓGICA: Verificar quiz_completed no Supabase
+          const quizCompleted = await checkQuizCompleted(currentUserId);
 
-          if (quizDone) {
-            // REGRA: quiz_done = true -> Dashboard
+          if (quizCompleted) {
+            // REGRA: quiz_completed = true -> Dashboard
             const savedGoals = localStorage.getItem('soulrise_user_goals');
             const savedPlan = localStorage.getItem('soulrise_personalized_plan');
             if (savedGoals && savedPlan) {
@@ -188,7 +183,7 @@ export default function Home() {
               setAppState('quiz');
             }
           } else {
-            // REGRA: quiz_done = false -> Quiz
+            // REGRA: quiz_completed = false -> Quiz
             setAppState('quiz');
           }
         } else if (event === 'SIGNED_OUT') {
@@ -207,13 +202,15 @@ export default function Home() {
     }
 
     // Listen for custom event to recreate plan
-    const handleRecreatePlan = () => {
+    const handleRecreatePlan = async () => {
       // Limpar dados do questionário
       localStorage.removeItem('soulrise_user_goals');
       localStorage.removeItem('soulrise_personalized_plan');
       
-      // NOVA LÓGICA: Apagar quiz_done
-      localStorage.removeItem('quiz_done');
+      // NOVA LÓGICA: Resetar quiz_completed no Supabase
+      if (userId) {
+        await resetQuizStatus(userId);
+      }
       
       // REGRA: Recriar plano -> reiniciar do quiz
       setAppState('quiz');
@@ -224,7 +221,7 @@ export default function Home() {
     return () => {
       window.removeEventListener('soulrise_recreate_plan', handleRecreatePlan);
     };
-  }, [router]);
+  }, [router, userId]);
 
   const handleOnboardingComplete = () => {
     // After onboarding, go to auth (cadastro/login)
@@ -261,25 +258,27 @@ export default function Home() {
       return;
     }
 
-    // NOVA LÓGICA: Verificar quiz_done
-    const quizDone = checkQuizDone();
-    
-    if (quizDone) {
-      // REGRA: quiz_done = true -> Dashboard
-      const savedGoals = localStorage.getItem('soulrise_user_goals');
-      const savedPlan = localStorage.getItem('soulrise_personalized_plan');
-      if (savedGoals && savedPlan) {
-        const goals = JSON.parse(savedGoals);
-        const plan = JSON.parse(savedPlan);
-        setUserGoals(goals);
-        setPersonalizedPlan(plan);
-        setDailyPlan(generateDailyPlan(goals[0] as Goal));
-        setAppState('dashboard');
-        return;
+    // NOVA LÓGICA: Verificar quiz_completed no Supabase
+    if (currentUserId) {
+      const quizCompleted = await checkQuizCompleted(currentUserId);
+      
+      if (quizCompleted) {
+        // REGRA: quiz_completed = true -> Dashboard
+        const savedGoals = localStorage.getItem('soulrise_user_goals');
+        const savedPlan = localStorage.getItem('soulrise_personalized_plan');
+        if (savedGoals && savedPlan) {
+          const goals = JSON.parse(savedGoals);
+          const plan = JSON.parse(savedPlan);
+          setUserGoals(goals);
+          setPersonalizedPlan(plan);
+          setDailyPlan(generateDailyPlan(goals[0] as Goal));
+          setAppState('dashboard');
+          return;
+        }
       }
     }
 
-    // REGRA: quiz_done = false -> Quiz
+    // REGRA: quiz_completed = false -> Quiz
     setAppState('quiz');
   };
 
@@ -297,8 +296,10 @@ export default function Home() {
     localStorage.setItem('soulrise_user_goals', JSON.stringify(goals));
     setDailyPlan(generateDailyPlan(goals[0] as Goal));
 
-    // NOVA LÓGICA: Guardar quiz_done = true no localStorage
-    localStorage.setItem('quiz_done', 'true');
+    // NOVA LÓGICA: Marcar quiz como concluído no Supabase
+    if (userId) {
+      await markQuizAsCompleted(userId);
+    }
 
     // Atualizar no Supabase se configurado (opcional, mas mantém compatibilidade)
     if (userId && isSupabaseConfigured) {
