@@ -43,6 +43,7 @@ import {
   SavedVerse,
   SavedReflection
 } from '@/lib/saved-content-helpers';
+import { checkAndUpdateStreak } from '@/lib/streak-system';
 
 interface UserProfile {
   name: string;
@@ -136,6 +137,9 @@ export default function PerfilPage() {
 
   const loadRealData = async (uid: string, email: string) => {
     try {
+      // Atualizar streak ao carregar perfil
+      await checkAndUpdateStreak(uid);
+
       // Buscar dados do perfil no Supabase (apenas campos que existem)
       const { data: profileData, error: profileError } = await supabase
         .from('profiles')
@@ -255,16 +259,18 @@ export default function PerfilPage() {
         avatarUrl: profileData.avatar_url
       });
 
-      // Carregar preferências do localStorage
-      const savedNotifications = localStorage.getItem('soulrise_notifications');
-      const savedFocus = localStorage.getItem('soulrise_focus_preference');
-      
-      if (savedNotifications !== null) {
-        setProfile(prev => ({ ...prev, notificationsEnabled: savedNotifications === 'true' }));
-      }
-      
-      if (savedFocus) {
-        setProfile(prev => ({ ...prev, focusPreference: savedFocus as any }));
+      // Carregar preferências do localStorage (APENAS NO CLIENTE)
+      if (typeof window !== 'undefined') {
+        const savedNotifications = localStorage.getItem('soulrise_notifications');
+        const savedFocus = localStorage.getItem('soulrise_focus_preference');
+        
+        if (savedNotifications !== null) {
+          setProfile(prev => ({ ...prev, notificationsEnabled: savedNotifications === 'true' }));
+        }
+        
+        if (savedFocus) {
+          setProfile(prev => ({ ...prev, focusPreference: savedFocus as any }));
+        }
       }
 
     } catch {
@@ -274,6 +280,14 @@ export default function PerfilPage() {
   };
 
   const loadLocalStorageData = async () => {
+    // Verificar se está no cliente antes de acessar localStorage
+    if (typeof window === 'undefined') {
+      return;
+    }
+
+    // Atualizar streak também no modo offline
+    await checkAndUpdateStreak('offline-user');
+
     // Carregar dados do localStorage como fallback
     const savedName = localStorage.getItem('soulrise_user_name');
     const savedPlan = localStorage.getItem('soulrise_personalized_plan');
@@ -356,17 +370,23 @@ export default function PerfilPage() {
   };
 
   const toggleNotifications = () => {
+    if (typeof window === 'undefined') return;
+    
     const newValue = !profile.notificationsEnabled;
     setProfile(prev => ({ ...prev, notificationsEnabled: newValue }));
     localStorage.setItem('soulrise_notifications', String(newValue));
   };
 
   const updateFocusPreference = (preference: 'balanced' | 'personal' | 'spiritual') => {
+    if (typeof window === 'undefined') return;
+    
     setProfile(prev => ({ ...prev, focusPreference: preference }));
     localStorage.setItem('soulrise_focus_preference', preference);
   };
 
   const handleRecreatePlan = async () => {
+    if (typeof window === 'undefined') return;
+    
     // Resetar no Supabase se configurado
     if (userId && isSupabaseConfigured) {
       await resetUserPlan(userId);
@@ -393,6 +413,8 @@ export default function PerfilPage() {
 
   // Funções para visualizar conteúdos guardados
   const handleViewSavedContent = async (type: 'affirmations' | 'verses' | 'reflections') => {
+    if (typeof window === 'undefined') return;
+    
     if (!userId) {
       // Fallback para localStorage se não houver userId
       if (type === 'affirmations') {
@@ -464,6 +486,8 @@ export default function PerfilPage() {
   };
 
   const handleDeleteContent = async (type: 'affirmations' | 'verses' | 'reflections', id: string) => {
+    if (typeof window === 'undefined') return;
+    
     if (!userId || id.startsWith('local-')) {
       // Deletar do localStorage
       if (type === 'affirmations') {
@@ -637,6 +661,7 @@ export default function PerfilPage() {
 
   const handleSaveName = async () => {
     if (!editedName.trim()) return;
+    if (typeof window === 'undefined') return;
 
     // Atualizar no Supabase se configurado (silenciosamente)
     if (userId && isSupabaseConfigured) {
@@ -664,6 +689,8 @@ export default function PerfilPage() {
   };
 
   const handleAvatarUpload = async (event: React.ChangeEvent<HTMLInputElement>) => {
+    if (typeof window === 'undefined') return;
+    
     const file = event.target.files?.[0];
     if (!file) return;
 
@@ -894,7 +921,10 @@ export default function PerfilPage() {
                   Desbloqueie conteúdos exclusivos, funcionalidades avançadas e muito mais
                 </p>
               </div>
-              <button className="px-8 py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-bold rounded-xl hover:from-amber-600 hover:to-orange-600 transition-all shadow-lg hover:shadow-xl whitespace-nowrap">
+              <button 
+                onClick={() => window.open('https://soulrise-premium.lasy.pro', '_blank')}
+                className="px-8 py-3 bg-gradient-to-r from-amber-500 to-orange-500 text-white font-bold rounded-xl hover:from-amber-600 hover:to-orange-600 transition-all shadow-lg hover:shadow-xl whitespace-nowrap"
+              >
                 Saber Mais
               </button>
             </div>

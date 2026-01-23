@@ -3,7 +3,7 @@
 import { X, Sparkles, Check } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
-const CHECKOUT_URL = 'https://pay.kambafy.com/checkout/a8abc16a-4344-4e32-b456-4f69592454ac';
+const PREMIUM_URL = 'https://soulrise-premium.lasy.pro';
 
 interface PaywallModalProps {
   onClose: () => void;
@@ -13,7 +13,7 @@ interface PaywallModalProps {
 
 export default function PaywallModal({ onClose, feature, benefits }: PaywallModalProps) {
   const handleUpgradeClick = () => {
-    window.open(CHECKOUT_URL, '_blank');
+    window.open(PREMIUM_URL, '_blank');
   };
 
   return (

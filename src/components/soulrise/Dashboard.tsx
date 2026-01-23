@@ -15,11 +15,12 @@ import Link from 'next/link';
 interface DashboardProps {
   goals: string[];
   dailyPlan: DailyPlan;
+  isPremiumUser?: boolean;
 }
 
 type View = 'home' | 'desenvolvimento' | 'espiritualidade' | 'saude';
 
-export default function Dashboard({ goals, dailyPlan }: DashboardProps) {
+export default function Dashboard({ goals, dailyPlan, isPremiumUser = false }: DashboardProps) {
   const [currentView, setCurrentView] = useState<View>('home');
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
@@ -189,7 +190,7 @@ export default function Dashboard({ goals, dailyPlan }: DashboardProps) {
             />
           )}
           {currentView === 'desenvolvimento' && <DesenvolvimentoView />}
-          {currentView === 'espiritualidade' && <EspiritualidadeView />}
+          {currentView === 'espiritualidade' && <EspiritualidadeView isPremiumUser={isPremiumUser} />}
           {currentView === 'saude' && <SaudeView />}
         </main>
       </div>

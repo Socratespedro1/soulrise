@@ -3,7 +3,7 @@
 import { Crown, X, Sparkles } from 'lucide-react';
 import { getPaywallMessage } from '@/lib/premium-helpers';
 
-const CHECKOUT_URL = 'https://pay.kambafy.com/checkout/a8abc16a-4344-4e32-b456-4f69592454ac';
+const PREMIUM_URL = 'https://soulrise-premium.lasy.pro';
 
 interface PremiumPaywallProps {
   area: 'home' | 'desenvolvimento' | 'espiritualidade' | 'biblia' | 'saude' | 'perfil';
@@ -15,7 +15,7 @@ export default function PremiumPaywall({ area, onClose, preview }: PremiumPaywal
   const message = getPaywallMessage(area);
 
   const handleUpgradeClick = () => {
-    window.open(CHECKOUT_URL, '_blank');
+    window.open(PREMIUM_URL, '_blank');
   };
 
   return (

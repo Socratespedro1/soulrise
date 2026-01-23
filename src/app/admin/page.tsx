@@ -3,7 +3,7 @@
 import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { checkIsAdmin, getCurrentUserEmail } from '@/lib/admin';
-import { supabase, isSupabaseConfigured, offlineAuth } from '@/lib/supabase';
+import { supabase, supabaseAdmin, isSupabaseConfigured, hasServiceRoleKey, offlineAuth } from '@/lib/supabase';
 import { 
   Settings, 
   Users, 
@@ -16,7 +16,9 @@ import {
   Trash2,
   Lock,
   Unlock,
-  BarChart3
+  BarChart3,
+  RefreshCw,
+  AlertCircle
 } from 'lucide-react';
 
 type ContentType = 'intentions' | 'actions' | 'rituals' | 'affirmations' | 'challenges';
@@ -30,17 +32,29 @@ interface Content {
   category: string;
 }
 
+interface User {
+  id: string;
+  email: string;
+  isPremium: boolean;
+  created_at: string;
+  last_sign_in_at?: string;
+  email_confirmed_at?: string;
+}
+
 export default function AdminPanel() {
   const router = useRouter();
   const [loading, setLoading] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
   const [userEmail, setUserEmail] = useState<string | null>(null);
-  const [activeTab, setActiveTab] = useState<'content' | 'users' | 'ai' | 'stats'>('content');
+  const [activeTab, setActiveTab] = useState<'content' | 'users' | 'ai' | 'stats'>('users');
   const [contents, setContents] = useState<Content[]>([]);
+  const [users, setUsers] = useState<User[]>([]);
   const [showAddModal, setShowAddModal] = useState(false);
   const [editingContent, setEditingContent] = useState<Content | null>(null);
   const [showAccessCode, setShowAccessCode] = useState(false);
   const [accessCode, setAccessCode] = useState('');
+  const [loadingUsers, setLoadingUsers] = useState(false);
+  const [usersError, setUsersError] = useState<string | null>(null);
 
   useEffect(() => {
     const verifyAdmin = async () => {
@@ -57,6 +71,7 @@ export default function AdminPanel() {
       } else {
         // É admin - carregar dados
         loadContents();
+        loadUsers();
         setLoading(false);
       }
     };
@@ -74,8 +89,156 @@ export default function AdminPanel() {
       setUserEmail('admin@soulrise.app');
       setShowAccessCode(false);
       loadContents();
+      loadUsers();
     } else {
       alert('Código de acesso inválido!');
+    }
+  };
+
+  const loadUsers = async () => {
+    setLoadingUsers(true);
+    setUsersError(null);
+    
+    try {
+      if (isSupabaseConfigured) {
+        // Estratégia 1: Usar supabaseAdmin para buscar todos os usuários
+        if (hasServiceRoleKey && supabaseAdmin) {
+          try {
+            const { data: authData, error: authError } = await supabaseAdmin.auth.admin.listUsers();
+            
+            if (authData && authData.users && authData.users.length > 0 && !authError) {
+              const formattedUsers: User[] = authData.users.map((user: any) => ({
+                id: user.id,
+                email: user.email || 'Sem email',
+                isPremium: user.user_metadata?.is_premium || false,
+                created_at: user.created_at || new Date().toISOString(),
+                last_sign_in_at: user.last_sign_in_at,
+                email_confirmed_at: user.email_confirmed_at
+              }));
+              setUsers(formattedUsers);
+              return; // Sucesso - sair da função
+            }
+          } catch (adminError) {
+            console.error('Erro ao usar supabaseAdmin:', adminError);
+          }
+        }
+
+        // Estratégia 2: Tentar buscar da tabela profiles
+        const { data: profilesData, error: profilesError } = await supabase
+          .from('profiles')
+          .select('*')
+          .order('created_at', { ascending: false });
+
+        if (profilesData && profilesData.length > 0 && !profilesError) {
+          const formattedUsers: User[] = profilesData.map((profile: any) => ({
+            id: profile.id,
+            email: profile.email || 'Sem email',
+            isPremium: profile.is_premium || false,
+            created_at: profile.created_at || new Date().toISOString(),
+            last_sign_in_at: profile.last_sign_in_at,
+            email_confirmed_at: profile.email_confirmed_at
+          }));
+          setUsers(formattedUsers);
+          return;
+        }
+
+        // Estratégia 3: Buscar usuário atual como fallback
+        const { data: { user: currentUser }, error: userError } = await supabase.auth.getUser();
+        
+        if (currentUser) {
+          const formattedUsers: User[] = [{
+            id: currentUser.id,
+            email: currentUser.email || 'Sem email',
+            isPremium: currentUser.user_metadata?.is_premium || false,
+            created_at: currentUser.created_at || new Date().toISOString(),
+            last_sign_in_at: currentUser.last_sign_in_at,
+            email_confirmed_at: currentUser.email_confirmed_at
+          }];
+          setUsers(formattedUsers);
+          
+          if (!hasServiceRoleKey) {
+            setUsersError('⚠️ Mostrando apenas o utilizador atual. Para ver todos os utilizadores, adicione a Service Role Key do Supabase nas variáveis de ambiente (NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY).');
+          }
+        } else {
+          setUsersError('Não foi possível carregar utilizadores. Verifique a configuração do Supabase.');
+        }
+      } else {
+        // Modo offline - carregar do localStorage
+        const offlineUsers = JSON.parse(localStorage.getItem('soulrise_offline_users') || '[]');
+        
+        const formattedUsers: User[] = offlineUsers.map((user: any) => ({
+          id: user.id,
+          email: user.email,
+          isPremium: user.isPremium || false,
+          created_at: user.created_at || new Date().toISOString()
+        }));
+
+        setUsers(formattedUsers);
+        
+        if (formattedUsers.length === 0) {
+          setUsersError('Nenhum utilizador encontrado no modo offline. Os utilizadores registados aparecerão aqui.');
+        }
+      }
+    } catch (error: any) {
+      console.error('Erro ao carregar utilizadores:', error);
+      setUsersError(error.message || 'Erro ao carregar utilizadores. Tente novamente.');
+    } finally {
+      setLoadingUsers(false);
+    }
+  };
+
+  const toggleUserPremium = async (userId: string) => {
+    try {
+      if (isSupabaseConfigured) {
+        // Atualizar no Supabase
+        const user = users.find(u => u.id === userId);
+        if (!user) return;
+
+        const { error } = await supabase
+          .from('profiles')
+          .update({ is_premium: !user.isPremium })
+          .eq('id', userId);
+
+        if (error) {
+          console.error('Erro ao atualizar premium:', error);
+          alert('Erro ao atualizar status premium. Verifique as permissões.');
+          return;
+        }
+
+        // Atualizar estado local
+        setUsers(users.map(u => 
+          u.id === userId ? { ...u, isPremium: !u.isPremium } : u
+        ));
+      } else {
+        // Modo offline
+        const offlineUsers = JSON.parse(localStorage.getItem('soulrise_offline_users') || '[]');
+        const updatedUsers = offlineUsers.map((user: any) => {
+          if (user.id === userId) {
+            return { ...user, isPremium: !user.isPremium };
+          }
+          return user;
+        });
+        
+        localStorage.setItem('soulrise_offline_users', JSON.stringify(updatedUsers));
+        
+        // Atualizar estado local
+        setUsers(users.map(user => 
+          user.id === userId ? { ...user, isPremium: !user.isPremium } : user
+        ));
+
+        // Se o usuário alterado está logado, atualizar sessão
+        const session = localStorage.getItem('soulrise_offline_session');
+        if (session) {
+          const currentUser = JSON.parse(session);
+          if (currentUser.id === userId) {
+            const updatedUser = updatedUsers.find((u: any) => u.id === userId);
+            localStorage.setItem('soulrise_offline_session', JSON.stringify(updatedUser));
+          }
+        }
+      }
+    } catch (error: any) {
+      console.error('Erro ao alternar premium:', error);
+      alert('Erro ao atualizar status premium.');
     }
   };
 
@@ -241,17 +404,6 @@ export default function AdminPanel() {
         {/* Tabs */}
         <div className="bg-white rounded-xl shadow-sm mb-6 p-2 flex gap-2 overflow-x-auto">
           <button
-            onClick={() => setActiveTab('content')}
-            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
-              activeTab === 'content'
-                ? 'bg-purple-100 text-purple-700'
-                : 'text-gray-600 hover:bg-gray-100'
-            }`}
-          >
-            <FileText className="w-5 h-5" />
-            <span>Conteúdos</span>
-          </button>
-          <button
             onClick={() => setActiveTab('users')}
             className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
               activeTab === 'users'
@@ -261,6 +413,17 @@ export default function AdminPanel() {
           >
             <Users className="w-5 h-5" />
             <span>Utilizadores</span>
+          </button>
+          <button
+            onClick={() => setActiveTab('content')}
+            className={`flex items-center gap-2 px-4 py-2 rounded-lg font-medium transition-all ${
+              activeTab === 'content'
+                ? 'bg-purple-100 text-purple-700'
+                : 'text-gray-600 hover:bg-gray-100'
+            }`}
+          >
+            <FileText className="w-5 h-5" />
+            <span>Conteúdos</span>
           </button>
           <button
             onClick={() => setActiveTab('ai')}
@@ -285,6 +448,95 @@ export default function AdminPanel() {
             <span>Estatísticas</span>
           </button>
         </div>
+
+        {/* Users Tab */}
+        {activeTab === 'users' && (
+          <div className="space-y-6">
+            <div className="flex items-center justify-between">
+              <div>
+                <h2 className="text-xl font-bold text-gray-900">Gerir Utilizadores</h2>
+                <p className="text-sm text-gray-600 mt-1">Total de utilizadores: {users.length}</p>
+              </div>
+              <button
+                onClick={loadUsers}
+                className="flex items-center gap-2 px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
+                disabled={loadingUsers}
+              >
+                <RefreshCw className={`w-5 h-5 ${loadingUsers ? 'animate-spin' : ''}`} />
+                <span>Atualizar</span>
+              </button>
+            </div>
+
+            {/* Alerta de erro */}
+            {usersError && (
+              <div className="bg-yellow-50 border border-yellow-200 rounded-xl p-4 flex items-start gap-3">
+                <AlertCircle className="w-5 h-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                <div className="flex-1">
+                  <h3 className="font-semibold text-yellow-900 mb-1">Aviso</h3>
+                  <p className="text-sm text-yellow-800">{usersError}</p>
+                </div>
+              </div>
+            )}
+
+            {loadingUsers ? (
+              <div className="bg-white rounded-xl shadow-sm p-12 text-center">
+                <div className="w-12 h-12 border-4 border-purple-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                <p className="text-gray-600">A carregar utilizadores...</p>
+              </div>
+            ) : users.length === 0 ? (
+              <div className="bg-white rounded-xl shadow-sm p-12 text-center">
+                <Users className="w-16 h-16 text-gray-400 mx-auto mb-4" />
+                <h3 className="text-lg font-semibold text-gray-900 mb-2">Nenhum utilizador encontrado</h3>
+                <p className="text-gray-600">Os utilizadores registados aparecerão aqui.</p>
+              </div>
+            ) : (
+              <div className="grid gap-4">
+                {users.map(user => (
+                  <div key={user.id} className="bg-white rounded-xl shadow-sm p-6 border border-gray-200">
+                    <div className="flex items-center justify-between">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <h3 className="text-lg font-semibold text-gray-900">{user.email}</h3>
+                          {user.isPremium ? (
+                            <span className="px-3 py-1 bg-gradient-to-r from-yellow-400 to-orange-500 text-white text-xs font-bold rounded-full flex items-center gap-1">
+                              <Crown className="w-3 h-3" />
+                              PREMIUM
+                            </span>
+                          ) : (
+                            <span className="px-3 py-1 bg-gray-100 text-gray-600 text-xs font-medium rounded-full">
+                              FREE
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex items-center gap-4 text-sm text-gray-500">
+                          <span>ID: {user.id.substring(0, 8)}...</span>
+                          <span>•</span>
+                          <span>Registado: {new Date(user.created_at).toLocaleDateString('pt-PT')}</span>
+                          {user.last_sign_in_at && (
+                            <>
+                              <span>•</span>
+                              <span>Último login: {new Date(user.last_sign_in_at).toLocaleDateString('pt-PT')}</span>
+                            </>
+                          )}
+                        </div>
+                      </div>
+                      <button
+                        onClick={() => toggleUserPremium(user.id)}
+                        className={`px-6 py-3 rounded-lg font-medium transition-all ${
+                          user.isPremium
+                            ? 'bg-gray-100 text-gray-700 hover:bg-gray-200'
+                            : 'bg-gradient-to-r from-yellow-400 to-orange-500 text-white hover:from-yellow-500 hover:to-orange-600'
+                        }`}
+                      >
+                        {user.isPremium ? 'Remover Premium' : 'Tornar Premium'}
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
 
         {/* Content Tab */}
         {activeTab === 'content' && (
@@ -348,20 +600,6 @@ export default function AdminPanel() {
           </div>
         )}
 
-        {/* Users Tab */}
-        {activeTab === 'users' && (
-          <div className="bg-white rounded-xl shadow-sm p-6">
-            <h2 className="text-xl font-bold text-gray-900 mb-4">Utilizadores</h2>
-            <p className="text-gray-600 mb-4">Gerir utilizadores registados na plataforma.</p>
-            <button
-              onClick={() => router.push('/admin/utilizadores')}
-              className="px-4 py-2 bg-purple-600 text-white rounded-lg hover:bg-purple-700 transition-colors"
-            >
-              Ver Utilizadores
-            </button>
-          </div>
-        )}
-
         {/* AI Tab */}
         {activeTab === 'ai' && (
           <div className="bg-white rounded-xl shadow-sm p-6">
@@ -374,7 +612,31 @@ export default function AdminPanel() {
         {activeTab === 'stats' && (
           <div className="bg-white rounded-xl shadow-sm p-6">
             <h2 className="text-xl font-bold text-gray-900 mb-4">Estatísticas</h2>
-            <p className="text-gray-600">Funcionalidade em desenvolvimento. Aqui poderás ver estatísticas de uso da app.</p>
+            <div className="grid grid-cols-1 md:grid-cols-3 gap-6 mb-6">
+              <div className="bg-gradient-to-br from-purple-50 to-purple-100 rounded-xl p-6">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-sm font-medium text-purple-900">Total de Utilizadores</h3>
+                  <Users className="w-5 h-5 text-purple-600" />
+                </div>
+                <p className="text-3xl font-bold text-purple-900">{users.length}</p>
+              </div>
+              <div className="bg-gradient-to-br from-yellow-50 to-yellow-100 rounded-xl p-6">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-sm font-medium text-yellow-900">Utilizadores Premium</h3>
+                  <Crown className="w-5 h-5 text-yellow-600" />
+                </div>
+                <p className="text-3xl font-bold text-yellow-900">{users.filter(u => u.isPremium).length}</p>
+              </div>
+              <div className="bg-gradient-to-br from-blue-50 to-blue-100 rounded-xl p-6">
+                <div className="flex items-center justify-between mb-2">
+                  <h3 className="text-sm font-medium text-blue-900">Taxa de Conversão</h3>
+                  <BarChart3 className="w-5 h-5 text-blue-600" />
+                </div>
+                <p className="text-3xl font-bold text-blue-900">
+                  {users.length > 0 ? Math.round((users.filter(u => u.isPremium).length / users.length) * 100) : 0}%
+                </p>
+              </div>
+            </div>
           </div>
         )}
       </div>

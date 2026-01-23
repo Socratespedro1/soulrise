@@ -3,6 +3,7 @@ import { createClient } from '@supabase/supabase-js';
 // Validação das variáveis de ambiente
 const supabaseUrl = process.env.NEXT_PUBLIC_SUPABASE_URL || '';
 const supabaseAnonKey = process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY || '';
+const supabaseServiceKey = process.env.NEXT_PUBLIC_SUPABASE_SERVICE_ROLE_KEY || '';
 
 // Verificar se as credenciais são válidas
 const isValidConfig = supabaseUrl && 
@@ -39,8 +40,21 @@ export const supabase = isValidConfig
       }
     );
 
+// Cliente admin com Service Role Key (para operações administrativas)
+export const supabaseAdmin = (supabaseUrl && supabaseServiceKey && isValidConfig)
+  ? createClient(supabaseUrl, supabaseServiceKey, {
+      auth: {
+        autoRefreshToken: false,
+        persistSession: false
+      }
+    })
+  : null;
+
 // Flag para verificar se o Supabase está configurado corretamente
 export const isSupabaseConfigured = isValidConfig;
+
+// Flag para verificar se o Service Role Key está disponível
+export const hasServiceRoleKey = !!(supabaseUrl && supabaseServiceKey && isValidConfig);
 
 // Modo offline - autenticação local simulada
 export const offlineAuth = {

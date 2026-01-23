@@ -2,15 +2,21 @@
 
 import { useState, useRef } from 'react';
 import { BookOpen, Sparkles, Heart, ChevronRight, Book, MessageCircle, Volume2 } from 'lucide-react';
-import { versiculosDoDia, reflexoesEspirituais, guiasEspirituais } from '@/lib/soulrise-data';
+import { versiculosDoDia, reflexoesEspirituais, guiasEspirituais, oracoes } from '@/lib/soulrise-data';
 import { Button } from '@/components/ui/button';
 import BibliaManualVida from '@/components/soulrise/BibliaManualVida';
+import OracaoView from '@/components/soulrise/OracaoView';
 
-type ViewMode = 'main' | 'guide' | 'biblia';
+type ViewMode = 'main' | 'guide' | 'biblia' | 'oracao';
 
-export default function EspiritualidadeView() {
+interface EspiritualidadeViewProps {
+  isPremiumUser?: boolean;
+}
+
+export default function EspiritualidadeView({ isPremiumUser = false }: EspiritualidadeViewProps) {
   const [viewMode, setViewMode] = useState<ViewMode>('main');
   const [selectedGuide, setSelectedGuide] = useState<string | null>(null);
+  const [selectedOracao, setSelectedOracao] = useState<string | null>(null);
 
   // Refs para scroll automático
   const bibliaRef = useRef<HTMLDivElement>(null);
@@ -26,7 +32,23 @@ export default function EspiritualidadeView() {
   };
 
   if (viewMode === 'biblia') {
-    return <BibliaManualVida onBack={() => setViewMode('main')} />;
+    return <BibliaManualVida onBack={() => setViewMode('main')} isPremiumUser={isPremiumUser} />;
+  }
+
+  if (viewMode === 'oracao' && selectedOracao) {
+    const oracao = oracoes.find(o => o.id === selectedOracao);
+    if (!oracao) return null;
+
+    return (
+      <OracaoView
+        oracao={oracao}
+        isPremiumUser={isPremiumUser}
+        onBack={() => {
+          setSelectedOracao(null);
+          setViewMode('main');
+        }}
+      />
+    );
   }
 
   if (viewMode === 'guide' && selectedGuide) {
@@ -161,11 +183,51 @@ export default function EspiritualidadeView() {
         </p>
       </div>
 
-      {/* Meditação / Oração */}
+      {/* Orações */}
       <div ref={oracaoRef} className="bg-white rounded-2xl p-6 md:p-8 shadow-xl mb-6">
         <div className="flex items-center gap-3 mb-6">
           <Heart className="w-6 h-6 text-pink-500" />
-          <h2 className="text-2xl font-bold text-gray-800">Meditação & Oração</h2>
+          <h2 className="text-2xl font-bold text-gray-800">Orações</h2>
+        </div>
+        <p className="text-gray-600 mb-6 text-sm md:text-base">
+          Escolhe uma oração que fala ao teu coração neste momento.
+        </p>
+        <div className="space-y-3">
+          {oracoes.map((oracao) => (
+            <button
+              key={oracao.id}
+              onClick={() => {
+                setSelectedOracao(oracao.id);
+                setViewMode('oracao');
+              }}
+              className="w-full p-4 rounded-xl border-2 border-gray-200 bg-white hover:border-purple-300 hover:shadow-md transition-all duration-300 text-left flex items-center justify-between group"
+            >
+              <div className="flex-1">
+                <div className="flex items-center gap-2 mb-1">
+                  <h3 className="font-semibold text-gray-800 text-sm md:text-base">
+                    {oracao.titulo}
+                  </h3>
+                  {oracao.isPremium && !isPremiumUser && (
+                    <span className="bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs px-2 py-1 rounded-full font-medium">
+                      Premium
+                    </span>
+                  )}
+                </div>
+                <p className="text-gray-600 text-xs md:text-sm">
+                  {oracao.descricao}
+                </p>
+              </div>
+              <ChevronRight className="w-5 h-5 text-gray-400 group-hover:text-purple-500 transition-colors flex-shrink-0 ml-2" />
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Meditação / Momento de Silêncio */}
+      <div className="bg-white rounded-2xl p-6 md:p-8 shadow-xl mb-6">
+        <div className="flex items-center gap-3 mb-6">
+          <Volume2 className="w-6 h-6 text-blue-500" />
+          <h2 className="text-2xl font-bold text-gray-800">Meditação & Silêncio</h2>
         </div>
         <div className="space-y-4">
           <div ref={silencioRef} className="p-4 rounded-xl bg-pink-50 border border-pink-200">

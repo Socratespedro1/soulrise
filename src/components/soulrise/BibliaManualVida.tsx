@@ -1,8 +1,10 @@
 'use client';
 
 import { useState } from 'react';
-import { Book, ArrowLeft, Heart } from 'lucide-react';
+import { Book, ArrowLeft, Heart, Lock } from 'lucide-react';
 import { Button } from '@/components/ui/button';
+
+const PREMIUM_SALES_URL = 'https://soulrise-premium.lasy.pro';
 
 type Tema = 'Ansiedade' | 'Medo' | 'Propósito' | 'Fé' | 'Disciplina' | 'Solidão' | 'Gratidão' | 'Força' | 'Perdão';
 type SecaoBiblia = 'menu' | 'versiculos' | 'oracoes';
@@ -18,6 +20,7 @@ interface Oracao {
   tipo: string;
   texto: string;
   cor: string;
+  isPremium?: boolean;
 }
 
 const oracoes: Oracao[] = [
@@ -29,12 +32,14 @@ const oracoes: Oracao[] = [
   {
     tipo: 'Oração para Dias Difíceis',
     texto: 'Pai, este dia está pesado e eu preciso de Ti. Sinto-me cansado, mas sei que Tu estás comigo. Dá-me força para continuar, mesmo quando tudo parece difícil. Lembra-me que esta tempestade vai passar e que Tu nunca me abandonas.',
-    cor: 'from-purple-400 to-pink-500'
+    cor: 'from-purple-400 to-pink-500',
+    isPremium: true
   },
   {
     tipo: 'Oração de Gratidão',
     texto: 'Obrigado, Senhor, por tudo o que tens feito por mim. Pelas pequenas coisas que muitas vezes não vejo, pelas pessoas que colocaste no meu caminho, pela vida que me deste. Hoje escolho ver as Tuas bênçãos e agradecer com um coração cheio.',
-    cor: 'from-yellow-400 to-amber-500'
+    cor: 'from-yellow-400 to-amber-500',
+    isPremium: true
   },
   {
     tipo: 'Oração de Confiança',
@@ -47,9 +52,10 @@ const oracoes: Oracao[] = [
     cor: 'from-indigo-400 to-blue-500'
   },
   {
-    tipo: 'Oração Antes de Dormir',
+    tipo: 'Oração Antes de Ir Dormir',
     texto: 'Senhor, obrigado por este dia. Entrego-Te tudo o que aconteceu, o bom e o difícil. Perdoa os meus erros e renova-me enquanto durmo. Que eu descanse em paz, sabendo que Tu cuidas de mim. Amanhã é um novo dia nas Tuas mãos.',
-    cor: 'from-pink-400 to-rose-500'
+    cor: 'from-pink-400 to-rose-500',
+    isPremium: true
   }
 ];
 
@@ -238,6 +244,9 @@ const versiculosPorTema: Record<Tema, Versiculo[]> = {
 
 const temas: Tema[] = ['Ansiedade', 'Medo', 'Propósito', 'Fé', 'Disciplina', 'Solidão', 'Gratidão', 'Força', 'Perdão'];
 
+// Temas premium com bloqueio suave
+const temasPremium: Set<Tema> = new Set(['Propósito', 'Gratidão', 'Fé', 'Perdão']);
+
 const coresTema: Record<Tema, string> = {
   Ansiedade: 'from-blue-400 to-cyan-500',
   Medo: 'from-purple-400 to-pink-500',
@@ -252,9 +261,10 @@ const coresTema: Record<Tema, string> = {
 
 interface BibliaManualVidaProps {
   onBack: () => void;
+  isPremiumUser?: boolean;
 }
 
-export default function BibliaManualVida({ onBack }: BibliaManualVidaProps) {
+export default function BibliaManualVida({ onBack, isPremiumUser = false }: BibliaManualVidaProps) {
   const [secaoAtual, setSecaoAtual] = useState<SecaoBiblia>('menu');
   const [temaSelecionado, setTemaSelecionado] = useState<Tema | null>(null);
   const [oracoesFavoritas, setOracoesFavoritas] = useState<Set<string>>(new Set());
@@ -269,6 +279,10 @@ export default function BibliaManualVida({ onBack }: BibliaManualVidaProps) {
       }
       return novoSet;
     });
+  };
+
+  const handlePremiumClick = () => {
+    window.open(PREMIUM_SALES_URL, '_blank');
   };
 
   // Seção de Orações
@@ -294,12 +308,20 @@ export default function BibliaManualVida({ onBack }: BibliaManualVidaProps) {
         <div className="space-y-6">
           {oracoes.map((oracao, index) => {
             const isFavorita = oracoesFavoritas.has(oracao.tipo);
+            const isPremiumOracao = oracao.isPremium && !isPremiumUser;
             
             return (
-              <div key={index} className="bg-white rounded-2xl p-6 md:p-8 shadow-xl">
+              <div key={index} className="bg-white rounded-2xl p-6 md:p-8 shadow-xl relative">
                 <div className="flex items-start justify-between mb-4">
-                  <div className={`bg-gradient-to-r ${oracao.cor} text-white px-4 py-2 rounded-xl font-semibold text-sm md:text-base`}>
-                    {oracao.tipo}
+                  <div className="flex items-center gap-2">
+                    <div className={`bg-gradient-to-r ${oracao.cor} text-white px-4 py-2 rounded-xl font-semibold text-sm md:text-base`}>
+                      {oracao.tipo}
+                    </div>
+                    {oracao.isPremium && !isPremiumUser && (
+                      <span className="bg-gradient-to-r from-purple-500 to-pink-500 text-white text-xs px-2 py-1 rounded-full font-medium">
+                        Premium
+                      </span>
+                    )}
                   </div>
                   <button
                     onClick={() => toggleFavorito(oracao.tipo)}
@@ -312,9 +334,34 @@ export default function BibliaManualVida({ onBack }: BibliaManualVidaProps) {
                   </button>
                 </div>
 
-                <p className="text-gray-700 text-base md:text-lg leading-relaxed italic">
-                  {oracao.texto}
-                </p>
+                {isPremiumOracao ? (
+                  <div className="relative">
+                    {/* Mostrar início da oração */}
+                    <p className="text-gray-700 text-base md:text-lg leading-relaxed italic mb-4">
+                      {oracao.texto.substring(0, 120)}...
+                    </p>
+                    
+                    {/* Bloqueio suave */}
+                    <div className="bg-gradient-to-b from-transparent via-white/80 to-white pt-8 pb-6 -mt-4">
+                      <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-6 border-2 border-purple-200 text-center">
+                        <Lock className="w-8 h-8 text-purple-500 mx-auto mb-3" />
+                        <p className="text-gray-800 font-medium mb-4">
+                          Esta oração completa faz parte do acompanhamento espiritual da SoulRise.
+                        </p>
+                        <button
+                          onClick={handlePremiumClick}
+                          className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-200 inline-flex items-center gap-2"
+                        >
+                          Continua com SoulRise Premium
+                        </button>
+                      </div>
+                    </div>
+                  </div>
+                ) : (
+                  <p className="text-gray-700 text-base md:text-lg leading-relaxed italic">
+                    {oracao.texto}
+                  </p>
+                )}
               </div>
             );
           })}
@@ -336,6 +383,7 @@ export default function BibliaManualVida({ onBack }: BibliaManualVidaProps) {
   if (secaoAtual === 'versiculos' && temaSelecionado) {
     const versiculos = versiculosPorTema[temaSelecionado];
     const corGradiente = coresTema[temaSelecionado];
+    const isTemaPremium = temasPremium.has(temaSelecionado) && !isPremiumUser;
 
     return (
       <div className="max-w-4xl mx-auto pb-20 md:pb-8">
@@ -352,46 +400,93 @@ export default function BibliaManualVida({ onBack }: BibliaManualVidaProps) {
         </Button>
 
         <div className={`bg-gradient-to-r ${corGradiente} rounded-2xl p-6 md:p-8 text-white shadow-xl mb-8`}>
-          <h2 className="text-3xl md:text-4xl font-bold mb-2">{temaSelecionado}</h2>
-          <p className="text-white/90 text-base md:text-lg">
-            Versículos que falam ao teu coração sobre este tema
-          </p>
+          <div className="flex items-center justify-between">
+            <div>
+              <h2 className="text-3xl md:text-4xl font-bold mb-2">{temaSelecionado}</h2>
+              <p className="text-white/90 text-base md:text-lg">
+                Versículos que falam ao teu coração sobre este tema
+              </p>
+            </div>
+            {isTemaPremium && (
+              <span className="bg-white/20 text-white text-sm px-3 py-1 rounded-full font-medium">
+                Premium
+              </span>
+            )}
+          </div>
         </div>
 
         <div className="space-y-6">
-          {versiculos.map((versiculo, index) => (
-            <div key={index} className="bg-white rounded-2xl p-6 md:p-8 shadow-xl">
-              <div className="mb-6">
-                <p className="text-lg md:text-xl text-gray-800 leading-relaxed italic mb-4">
-                  "{versiculo.texto}"
-                </p>
-                <p className="text-purple-600 font-semibold text-base md:text-lg">
-                  — {versiculo.referencia}
-                </p>
-              </div>
+          {versiculos.map((versiculo, index) => {
+            // Mostrar apenas o primeiro versículo completo para temas premium
+            const shouldBlur = isTemaPremium && index > 0;
+            
+            return (
+              <div key={index} className="bg-white rounded-2xl p-6 md:p-8 shadow-xl relative">
+                {shouldBlur && (
+                  <div className="absolute inset-0 bg-gradient-to-b from-transparent via-white/60 to-white z-10 rounded-2xl flex items-end justify-center pb-8">
+                    <div className="bg-gradient-to-r from-purple-50 to-pink-50 rounded-xl p-6 border-2 border-purple-200 text-center mx-6">
+                      <Lock className="w-8 h-8 text-purple-500 mx-auto mb-3" />
+                      <p className="text-gray-800 font-medium mb-4">
+                        Esta oração completa faz parte do acompanhamento espiritual da SoulRise.
+                      </p>
+                      <button
+                        onClick={handlePremiumClick}
+                        className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-200 inline-flex items-center gap-2"
+                      >
+                        Desbloquear Premium
+                      </button>
+                    </div>
+                  </div>
+                )}
+                
+                <div className={shouldBlur ? 'blur-sm' : ''}>
+                  <div className="mb-6">
+                    <p className="text-lg md:text-xl text-gray-800 leading-relaxed italic mb-4">
+                      "{versiculo.texto}"
+                    </p>
+                    <p className="text-purple-600 font-semibold text-base md:text-lg">
+                      — {versiculo.referencia}
+                    </p>
+                  </div>
 
-              <div className="space-y-4">
-                <div className="bg-blue-50 rounded-xl p-4 border-l-4 border-blue-500">
-                  <h4 className="font-semibold text-gray-800 mb-2 text-sm md:text-base">
-                    💡 O que isto significa
-                  </h4>
-                  <p className="text-gray-700 text-sm md:text-base leading-relaxed">
-                    {versiculo.explicacao}
-                  </p>
-                </div>
+                  <div className="space-y-4">
+                    <div className="bg-blue-50 rounded-xl p-4 border-l-4 border-blue-500">
+                      <h4 className="font-semibold text-gray-800 mb-2 text-sm md:text-base">
+                        💡 O que isto significa
+                      </h4>
+                      <p className="text-gray-700 text-sm md:text-base leading-relaxed">
+                        {versiculo.explicacao}
+                      </p>
+                    </div>
 
-                <div className="bg-green-50 rounded-xl p-4 border-l-4 border-green-500">
-                  <h4 className="font-semibold text-gray-800 mb-2 text-sm md:text-base">
-                    ✨ Como aplicar hoje
-                  </h4>
-                  <p className="text-gray-700 text-sm md:text-base leading-relaxed">
-                    {versiculo.aplicacao}
-                  </p>
+                    <div className="bg-green-50 rounded-xl p-4 border-l-4 border-green-500">
+                      <h4 className="font-semibold text-gray-800 mb-2 text-sm md:text-base">
+                        ✨ Como aplicar hoje
+                      </h4>
+                      <p className="text-gray-700 text-sm md:text-base leading-relaxed">
+                        {versiculo.aplicacao}
+                      </p>
+                    </div>
+                  </div>
                 </div>
               </div>
-            </div>
-          ))}
+            );
+          })}
         </div>
+
+        {isTemaPremium && (
+          <div className="mt-8 bg-gradient-to-r from-purple-50 to-pink-50 rounded-2xl p-6 border-2 border-purple-200 text-center">
+            <p className="text-gray-800 font-medium mb-4">
+              Desbloqueia todos os versículos e aprofunda a tua jornada espiritual com SoulRise Premium.
+            </p>
+            <button
+              onClick={handlePremiumClick}
+              className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white font-semibold py-3 px-6 rounded-xl transition-all duration-200 inline-flex items-center gap-2"
+            >
+              Desbloquear Premium
+            </button>
+          </div>
+        )}
       </div>
     );
   }
@@ -442,18 +537,27 @@ export default function BibliaManualVida({ onBack }: BibliaManualVidaProps) {
         </p>
 
         <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-          {temas.map((tema) => (
-            <button
-              key={tema}
-              onClick={() => {
-                setTemaSelecionado(tema);
-                setSecaoAtual('versiculos');
-              }}
-              className={`bg-gradient-to-r ${coresTema[tema]} text-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 text-center font-semibold text-base md:text-lg`}
-            >
-              {tema}
-            </button>
-          ))}
+          {temas.map((tema) => {
+            const isPremiumTema = temasPremium.has(tema);
+            
+            return (
+              <button
+                key={tema}
+                onClick={() => {
+                  setTemaSelecionado(tema);
+                  setSecaoAtual('versiculos');
+                }}
+                className={`bg-gradient-to-r ${coresTema[tema]} text-white rounded-xl p-6 shadow-lg hover:shadow-xl transition-all duration-300 hover:scale-105 text-center font-semibold text-base md:text-lg relative`}
+              >
+                {tema}
+                {isPremiumTema && !isPremiumUser && (
+                  <span className="absolute top-2 right-2 bg-white/30 backdrop-blur-sm text-white text-xs px-2 py-1 rounded-full font-medium">
+                    Premium
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </div>
       </div>
 

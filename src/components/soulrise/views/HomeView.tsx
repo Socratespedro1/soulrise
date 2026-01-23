@@ -1,11 +1,13 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { Target, Zap, Repeat, Sparkles, MessageSquare, Trophy, X, Check, Heart, Crown, Lock } from 'lucide-react';
+import { Target, Zap, Repeat, Sparkles, MessageSquare, Trophy, X, Check, Heart, Crown, Lock, Flame } from 'lucide-react';
 import { Goal, DailyPlan, goalLabels } from '@/lib/soulrise-data';
 import { PersonalizedPlan } from '../ConnectionQuiz';
 import { checkPremiumStatus, requiresPremium } from '@/lib/premium-helpers';
 import PremiumPaywall from '../PremiumPaywall';
+import { checkAndUpdateStreak, getStreakData } from '@/lib/streak-system';
+import { supabase, isSupabaseConfigured } from '@/lib/supabase';
 
 interface HomeViewProps {
   goals: string[];
@@ -27,7 +29,7 @@ interface ModalContent {
   preview?: string;
 }
 
-const CHECKOUT_URL = 'https://pay.kambafy.com/checkout/a8abc16a-4344-4e32-b456-4f69592454ac';
+const PREMIUM_URL = 'https://soulrise-premium.lasy.pro';
 
 export default function HomeView({ goals, dailyPlan, personalizedPlan }: HomeViewProps) {
   const [activeModal, setActiveModal] = useState<ModalType>(null);
@@ -35,11 +37,68 @@ export default function HomeView({ goals, dailyPlan, personalizedPlan }: HomeVie
   const [showPaywall, setShowPaywall] = useState(false);
   const [paywallPreview, setPaywallPreview] = useState<string>('');
   const [isPremium, setIsPremium] = useState(false);
+  const [streakCount, setStreakCount] = useState(0);
+  const [streakClicked, setStreakClicked] = useState(false);
+  const [showStreakAnimation, setShowStreakAnimation] = useState(false);
 
   useEffect(() => {
     const { isPremium: premium } = checkPremiumStatus();
     setIsPremium(premium);
+    
+    // Carregar streak atual
+    loadStreak();
   }, []);
+
+  const loadStreak = async () => {
+    const streakData = await getStreakData();
+    setStreakCount(streakData.streakCount);
+    
+    // Verificar se já clicou hoje
+    const today = new Date().toISOString().split('T')[0];
+    const lastClick = localStorage.getItem('soulrise_streak_last_click');
+    if (lastClick === today) {
+      setStreakClicked(true);
+    }
+  };
+
+  const handleStreakClick = async () => {
+    if (streakClicked) return;
+
+    // Obter userId
+    let userId: string | null = null;
+    if (isSupabaseConfigured) {
+      try {
+        const { data: { session } } = await supabase.auth.getSession();
+        if (session?.user) {
+          userId = session.user.id;
+        }
+      } catch (error) {
+        console.log('Erro ao obter sessão:', error);
+      }
+    }
+
+    // Atualizar streak
+    if (userId) {
+      const updatedStreak = await checkAndUpdateStreak(userId);
+      setStreakCount(updatedStreak.streakCount);
+    } else {
+      // Fallback: atualizar no localStorage
+      const updatedStreak = await checkAndUpdateStreak('offline-user');
+      setStreakCount(updatedStreak.streakCount);
+    }
+
+    // Marcar como clicado hoje
+    const today = new Date().toISOString().split('T')[0];
+    localStorage.setItem('soulrise_streak_last_click', today);
+    setStreakClicked(true);
+
+    // Mostrar animação
+    setShowStreakAnimation(true);
+    setTimeout(() => setShowStreakAnimation(false), 2000);
+
+    // Disparar evento customizado para sincronizar com PerfilView
+    window.dispatchEvent(new CustomEvent('soulrise_streak_updated'));
+  };
 
   // Sugestões diárias de Saúde & Bem-Estar (rotativas)
   const saudeSuggestions = [
@@ -241,9 +300,9 @@ export default function HomeView({ goals, dailyPlan, personalizedPlan }: HomeVie
   };
 
   const handleCardClick = (item: typeof planItems[0]) => {
-    // Se é Premium e utilizador não tem Premium, redirecionar DIRETAMENTE para checkout
+    // Se é Premium e utilizador não tem Premium, redirecionar DIRETAMENTE para página de vendas
     if (item.isPremium && !isPremium) {
-      window.open(CHECKOUT_URL, '_blank');
+      window.open(PREMIUM_URL, '_blank');
       return;
     }
 
@@ -298,6 +357,67 @@ export default function HomeView({ goals, dailyPlan, personalizedPlan }: HomeVie
             </span>
           </div>
         )}
+      </div>
+
+      {/* Botão de Streak - Gamificação */}
+      <div className="mb-6">
+        <button
+          onClick={handleStreakClick}
+          disabled={streakClicked}
+          className={`w-full bg-gradient-to-br from-orange-50 to-red-50 rounded-2xl p-6 shadow-lg transition-all duration-300 border-2 border-orange-200 text-left relative overflow-hidden ${
+            streakClicked 
+              ? 'opacity-75 cursor-not-allowed' 
+              : 'hover:shadow-xl hover:scale-[1.02] cursor-pointer'
+          }`}
+        >
+          {/* Animação de confetti quando clica */}
+          {showStreakAnimation && (
+            <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-orange-400/20 to-red-400/20 animate-pulse">
+              <span className="text-6xl animate-bounce">🔥</span>
+            </div>
+          )}
+
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className={`w-16 h-16 rounded-xl bg-gradient-to-br from-orange-400 to-red-400 flex items-center justify-center shadow-md ${
+                !streakClicked && 'animate-pulse'
+              }`}>
+                <Flame className="w-8 h-8 text-white" />
+              </div>
+              <div>
+                <h3 className="font-bold text-gray-800 text-lg mb-1">
+                  {streakClicked ? 'Streak Registado Hoje! 🎉' : 'Clica para Registar o Teu Dia'}
+                </h3>
+                <p className="text-gray-600 text-sm">
+                  {streakClicked 
+                    ? `Mantiveste o teu streak de ${streakCount} ${streakCount === 1 ? 'dia' : 'dias'}!` 
+                    : 'Mantém a tua consistência diária'}
+                </p>
+              </div>
+            </div>
+            
+            <div className="text-center">
+              <div className="text-4xl font-bold text-orange-600">{streakCount}</div>
+              <p className="text-xs text-gray-600 font-medium">{streakCount === 1 ? 'dia' : 'dias'}</p>
+            </div>
+          </div>
+
+          {!streakClicked && (
+            <div className="mt-4 bg-gradient-to-r from-orange-100 to-red-100 rounded-xl p-3">
+              <p className="text-center text-orange-800 text-sm font-medium">
+                👆 Clica aqui todos os dias para manter o teu streak ativo
+              </p>
+            </div>
+          )}
+
+          {streakClicked && (
+            <div className="mt-4 bg-gradient-to-r from-green-100 to-emerald-100 rounded-xl p-3">
+              <p className="text-center text-green-800 text-sm font-medium">
+                ✅ Já registaste hoje. Volta amanhã para continuar!
+              </p>
+            </div>
+          )}
+        </button>
       </div>
 
       {/* Sugestão de Saúde & Bem-Estar - FREE */}

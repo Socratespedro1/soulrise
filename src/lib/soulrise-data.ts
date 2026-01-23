@@ -163,3 +163,184 @@ export const rituaisDiarios = [
   { id: 'gratidao', titulo: 'Gratidão', descricao: 'Escrever 3 gratidões', icon: 'heart' },
   { id: 'mental', titulo: 'Momento Mental', descricao: '10 min de meditação', icon: 'brain' }
 ];
+
+// Orações
+export interface Oracao {
+  id: string;
+  titulo: string;
+  descricao: string;
+  contexto: string;
+  textoCompleto: string;
+  isPremium: boolean;
+  previewText?: string; // Texto de preview para orações premium
+}
+
+export const oracoes: Oracao[] = [
+  {
+    id: 'oracao-manha',
+    titulo: 'Oração da Manhã',
+    descricao: 'Para começar o dia com propósito',
+    contexto: 'Esta oração ajuda-te a começar o dia com clareza, gratidão e confiança no propósito divino.',
+    textoCompleto: `Senhor, agradeço por este novo dia que me ofereces.
+
+Que eu possa viver cada momento com presença e gratidão.
+Que as minhas ações reflitam o amor e a luz que habita em mim.
+Que eu seja instrumento de paz e bondade para todos que cruzarem o meu caminho.
+
+Guia os meus passos, ilumina as minhas decisões e fortalece a minha fé.
+
+Confio em Ti e no propósito que tens para a minha vida.
+
+Amém.`,
+    isPremium: false
+  },
+  {
+    id: 'oracao-gratidao',
+    titulo: 'Oração de Gratidão',
+    descricao: 'Para reconhecer as bênçãos',
+    contexto: 'A gratidão transforma o que temos em suficiente e abre portas para mais bênçãos. Esta oração ajuda-te a reconhecer e celebrar as dádivas da vida.',
+    previewText: `Pai Celestial, venho diante de Ti com um coração cheio de gratidão.
+
+Agradeço por cada respiração, por cada momento de vida que me concedes.
+Agradeço pela saúde, pela família, pelos amigos que iluminam os meus dias.`,
+    textoCompleto: `Pai Celestial, venho diante de Ti com um coração cheio de gratidão.
+
+Agradeço por cada respiração, por cada momento de vida que me concedes.
+Agradeço pela saúde, pela família, pelos amigos que iluminam os meus dias.
+Agradeço pelos desafios que me fortalecem e pelas vitórias que me inspiram.
+
+Reconheço que tudo o que tenho é uma bênção Tua.
+Que eu nunca esqueça de agradecer, mesmo nos momentos difíceis.
+Que a gratidão seja a minha oração constante.
+
+Obrigado por me amares incondicionalmente.
+Obrigado por nunca me abandonares.
+Obrigado por seres a minha força e o meu refúgio.
+
+Que eu possa retribuir este amor servindo os outros com compaixão e generosidade.
+
+Amém.`,
+    isPremium: true
+  },
+  {
+    id: 'oracao-protecao',
+    titulo: 'Oração de Proteção',
+    descricao: 'Para sentir segurança divina',
+    contexto: 'Quando precisas de sentir a proteção e o cuidado divino sobre ti e os teus entes queridos.',
+    textoCompleto: `Senhor, coloco-me sob a Tua proteção divina.
+
+Que a Tua luz me envolva e afaste toda a escuridão.
+Que os Teus anjos me guardem em todos os meus caminhos.
+Protege a minha família, os meus amigos e todos aqueles que amo.
+
+Que nenhum mal nos alcance.
+Que a Tua paz habite nos nossos corações e nos nossos lares.
+
+Confio plenamente em Ti, meu protetor e guardião.
+
+Amém.`,
+    isPremium: false
+  },
+  {
+    id: 'oracao-dias-dificeis',
+    titulo: 'Oração para Dias Difíceis',
+    descricao: 'Para encontrar força nos desafios',
+    contexto: 'Nos momentos de dificuldade, esta oração oferece conforto, força e a certeza de que não estás sozinho.',
+    previewText: `Senhor, hoje o meu coração está pesado.
+As dificuldades parecem maiores do que a minha força.
+
+Mas eu sei que Tu estás comigo.
+Sei que nunca me abandonas, mesmo quando não consigo sentir a Tua presença.`,
+    textoCompleto: `Senhor, hoje o meu coração está pesado.
+As dificuldades parecem maiores do que a minha força.
+
+Mas eu sei que Tu estás comigo.
+Sei que nunca me abandonas, mesmo quando não consigo sentir a Tua presença.
+
+Dá-me força para enfrentar este dia.
+Dá-me coragem para não desistir.
+Dá-me fé para confiar que tudo tem um propósito.
+
+Transforma a minha dor em crescimento.
+Transforma o meu medo em confiança.
+Transforma a minha fraqueza em força através de Ti.
+
+Lembra-me que as tempestades passam e que o sol voltará a brilhar.
+Lembra-me que Tu tens um plano perfeito para a minha vida.
+
+Segura a minha mão e guia-me através desta jornada.
+
+Amém.`,
+    isPremium: true
+  },
+  {
+    id: 'oracao-paz',
+    titulo: 'Oração pela Paz Interior',
+    descricao: 'Para acalmar a mente e o coração',
+    contexto: 'Quando a ansiedade e a agitação tomam conta, esta oração traz serenidade e equilíbrio.',
+    textoCompleto: `Senhor da Paz, acalma o meu coração inquieto.
+
+Que a Tua paz, que excede todo o entendimento, inunde o meu ser.
+Que eu possa soltar as preocupações e confiar plenamente em Ti.
+
+Ensina-me a viver no presente, sem ansiedade pelo futuro.
+Ensina-me a encontrar serenidade mesmo no meio do caos.
+
+Que a Tua paz seja a minha âncora.
+
+Amém.`,
+    isPremium: false
+  },
+  {
+    id: 'oracao-dormir',
+    titulo: 'Oração Antes de Ir Dormir',
+    descricao: 'Para descansar em paz',
+    contexto: 'Esta oração prepara o teu coração e mente para um descanso profundo e restaurador, entregando o dia nas mãos de Deus.',
+    previewText: `Senhor, agradeço por este dia que termina.
+
+Agradeço pelas alegrias, pelas lições e até pelos desafios que me fizeram crescer.
+Perdoa-me por qualquer erro que tenha cometido.`,
+    textoCompleto: `Senhor, agradeço por este dia que termina.
+
+Agradeço pelas alegrias, pelas lições e até pelos desafios que me fizeram crescer.
+Perdoa-me por qualquer erro que tenha cometido.
+Ajuda-me a perdoar aqueles que me magoaram.
+
+Agora, entrego este dia nas Tuas mãos.
+Entrego as minhas preocupações, os meus medos e as minhas ansiedades.
+
+Que eu possa descansar em paz, sabendo que Tu cuidas de mim.
+Que o meu sono seja profundo e restaurador.
+Que eu acorde amanhã renovado e cheio de energia.
+
+Protege-me durante a noite.
+Protege todos aqueles que amo.
+
+Que os Teus anjos nos guardem até o amanhecer.
+
+Boa noite, Senhor. Confio em Ti.
+
+Amém.`,
+    isPremium: true
+  },
+  {
+    id: 'oracao-sabedoria',
+    titulo: 'Oração por Sabedoria',
+    descricao: 'Para tomar decisões com clareza',
+    contexto: 'Quando precisas de discernimento e sabedoria para tomar decisões importantes.',
+    textoCompleto: `Senhor, fonte de toda sabedoria, ilumina a minha mente.
+
+Que eu possa ver com clareza o caminho que devo seguir.
+Que eu possa discernir entre o certo e o errado.
+Que as minhas decisões sejam guiadas pela Tua vontade.
+
+Dá-me sabedoria para agir com prudência.
+Dá-me coragem para seguir o que é justo.
+Dá-me humildade para reconhecer quando preciso de ajuda.
+
+Confio na Tua orientação.
+
+Amém.`,
+    isPremium: false
+  }
+];

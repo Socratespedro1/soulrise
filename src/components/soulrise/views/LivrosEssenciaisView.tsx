@@ -15,6 +15,8 @@ import {
 } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 
+const PREMIUM_SALES_URL = 'https://soulrise-premium.lasy.pro';
+
 // Tipos
 interface Livro {
   id: string;
@@ -117,9 +119,8 @@ const categorias = Array.from(new Set(livrosEssenciais.map(l => l.categoria)));
 
 export default function LivrosEssenciaisView({ onBack }: { onBack: () => void }) {
   const [selectedLivro, setSelectedLivro] = useState<Livro | null>(null);
-  const [showPaywall, setShowPaywall] = useState(false);
   const [livrosParaLer, setLivrosParaLer] = useState<Set<string>>(new Set());
-  const isPremium = false; // Aqui você conectaria com o sistema de assinatura real
+  const isPremium = false;
 
   const toggleLivroParaLer = (livroId: string) => {
     setLivrosParaLer(prev => {
@@ -134,73 +135,8 @@ export default function LivrosEssenciaisView({ onBack }: { onBack: () => void })
   };
 
   const handlePremiumClick = () => {
-    if (!isPremium) {
-      setShowPaywall(true);
-    }
+    window.open(PREMIUM_SALES_URL, '_blank');
   };
-
-  // Modal de Paywall
-  if (showPaywall) {
-    return (
-      <div className="max-w-3xl mx-auto pb-20 md:pb-8">
-        <Button
-          onClick={() => setShowPaywall(false)}
-          variant="ghost"
-          className="mb-6 text-gray-600 hover:text-gray-800"
-        >
-          ← Voltar
-        </Button>
-
-        <div className="bg-gradient-to-br from-purple-500 to-indigo-600 rounded-2xl p-8 md:p-12 text-white shadow-2xl">
-          <div className="text-center mb-8">
-            <div className="w-20 h-20 bg-white/20 rounded-full flex items-center justify-center mx-auto mb-6">
-              <Sparkles className="w-10 h-10" />
-            </div>
-            <h1 className="text-3xl md:text-4xl font-bold mb-4">
-              Desbloqueia Conteúdo Premium
-            </h1>
-            <p className="text-lg md:text-xl text-purple-100">
-              Acede a resumos práticos, guias de aplicação e exercícios de todos os livros essenciais
-            </p>
-          </div>
-
-          <div className="bg-white/10 backdrop-blur-sm rounded-xl p-6 mb-8">
-            <h3 className="font-semibold text-xl mb-4">O que inclui:</h3>
-            <ul className="space-y-3">
-              <li className="flex items-start gap-3">
-                <BookOpen className="w-5 h-5 flex-shrink-0 mt-0.5" />
-                <span>Resumos práticos de cada livro com as ideias-chave</span>
-              </li>
-              <li className="flex items-start gap-3">
-                <Lightbulb className="w-5 h-5 flex-shrink-0 mt-0.5" />
-                <span>Guias de "Como aplicar na vida real" passo a passo</span>
-              </li>
-              <li className="flex items-start gap-3">
-                <Sparkles className="w-5 h-5 flex-shrink-0 mt-0.5" />
-                <span>Exercícios práticos baseados em cada livro</span>
-              </li>
-              <li className="flex items-start gap-3">
-                <Book className="w-5 h-5 flex-shrink-0 mt-0.5" />
-                <span>Acesso a todos os 6 livros essenciais e futuros</span>
-              </li>
-            </ul>
-          </div>
-
-          <div className="text-center">
-            <Button
-              size="lg"
-              className="bg-white text-purple-600 hover:bg-purple-50 font-bold text-lg px-8 py-6 rounded-xl shadow-xl"
-            >
-              Subscrever Premium
-            </Button>
-            <p className="text-sm text-purple-200 mt-4">
-              Cancela quando quiseres. Sem compromissos.
-            </p>
-          </div>
-        </div>
-      </div>
-    );
-  }
 
   // Visualização detalhada de um livro
   if (selectedLivro) {
